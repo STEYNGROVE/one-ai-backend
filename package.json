@@ -1,6 +1,7 @@
 {
   "name": "one-ai-backend",
   "version": "1.0.0",
+  "description": "ONE AI backend",
   "main": "index.js",
   "type": "module",
   "scripts": {
