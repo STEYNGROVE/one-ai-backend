@@ -50,6 +50,21 @@ Act as a smart assistant: translate, summarize, explain.
     });
 
     const data = await response.json();
+
+    console.log("GROQ RESPONSE:", JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      return res.json({
+        reply: "HTTP Error: " + response.status
+      });
+    }
+
+    if (data.error) {
+      return res.json({
+        reply: "Groq Error: " + data.error.message
+      });
+    }
+
     const reply = data?.choices?.[0]?.message?.content || "Error";
 
     res.json({ reply });
