@@ -30,7 +30,7 @@ app.post("/ai", async (req, res) => {
     users[userId] = users[userId] || { count: 0, pro: false };
 
     // Free limit
-    if (!users[userId].pro && users[userId].count >= 5) {
+    if (!users[userId].pro && users[userId].count >= 44) {
       return res.json({
         reply: "🚀 Free limit reached. Upgrade to PRO."
       });
