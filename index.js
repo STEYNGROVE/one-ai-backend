@@ -1,110 +1,88 @@
 import express from "express";
-import fetch from "node-fetch";
 import cors from "cors";
+
+import { getUser, updateUser } from "./userService.js";
+import { runAI } from "./aiService.js";
+import { checkLimit } from "./rateLimiter.js";
+import { log } from "./utils/logger.js";
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-// 🧠 Simple memory (MVP)
-let users = {};
-
-// 🔍 Health check
+// Health
 app.get("/", (req, res) => {
-  res.send("🚀 ONE AI backend running");
+  res.send("🚀 ONE AI LIVE");
 });
 
-// 🚀 AI endpoint
+// AI endpoint
 app.post("/ai", async (req, res) => {
   try {
-    const { message, mode, userId } = req.body;
+    const { message, userId } = req.body;
 
-    if (!userId) {
-      return res.json({ reply: "Missing userId" });
+    if (!userId || !message) {
+      return res.json({ reply: "Missing data" });
     }
 
-    // Track users
-    users[userId] = users[userId] || { count: 0, pro: false };
+    // Rate limit
+    if (!checkLimit(userId)) {
+      return res.json({ reply: "Too many requests. Slow down." });
+    }
+
+    const user = await getUser(userId);
 
     // Free limit
-    if (!users[userId].pro && users[userId].count >= 5) {
+    if (!user.pro && user.usage >= 5) {
       return res.json({
-        reply: "🚀 Free limit reached. Upgrade to PRO."
+        reply: "🚀 Upgrade to PRO for unlimited access."
       });
     }
 
-    users[userId].count++;
+    const updatedHistory = [...user.history, message];
 
-    let systemPrompt = "";
-
-    if (mode === "money") {
-      systemPrompt = `
-Give 3 REAL ways to make money TODAY in South Africa.
-
-Include:
-- Step-by-step
-- WhatsApp message script
-- Estimated earnings
-`;
-    } else if (mode === "task") {
-      systemPrompt = `
-Complete the task fully and return ready-to-copy result.
-`;
-    } else {
-      systemPrompt = `
-Translate, summarize, or explain clearly.
-`;
-    }
-
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: message }
-        ]
-      })
+    await updateUser(userId, {
+      usage: user.usage + 1,
+      history: updatedHistory,
+      lastActive: new Date(),
+      goal: user.goal || message
     });
 
-    const data = await response.json();
+    const systemPrompt = `
+You are ONE AI.
 
-    // Debug errors
-    if (data.error) {
-      return res.json({ reply: "Groq Error: " + data.error.message });
-    }
+Goal: ${user.goal || message}
 
-    const reply =
-      data?.choices?.[0]?.message?.content ||
-      "No response from AI";
+Give actionable ways to make money fast in South Africa.
+`;
+
+    const reply = await runAI(message, systemPrompt);
+
+    log({ userId, message });
 
     res.json({ reply });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ reply: "Server error" });
+    res.json({ reply: "Server error" });
   }
 });
 
-// 💳 Fake payment verification (MVP)
-app.post("/verify-payment", (req, res) => {
+// Payment upgrade
+app.post("/verify-payment", async (req, res) => {
   const { userId } = req.body;
 
-  if (users[userId]) {
-    users[userId].pro = true;
-  }
+  await updateUser(userId, { pro: true });
 
   res.json({ status: "PRO activated" });
 });
 
-// 🚀 Start server
+// Stats
+app.get("/stats", async (req, res) => {
+  res.json({ status: "ok" });
+});
+
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log("Server running:", PORT);
 });

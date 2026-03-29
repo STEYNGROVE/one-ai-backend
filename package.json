@@ -1,15 +1,15 @@
 {
   "name": "one-ai-backend",
-  "version": "1.0.0",
-  "description": "ONE AI backend",
-  "main": "index.js",
+  "version": "2.0.0",
   "type": "module",
+  "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "node-fetch": "^3.3.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "firebase-admin": "^12.0.0"
   }
 }
